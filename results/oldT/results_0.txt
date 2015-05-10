@@ -1,0 +1,5 @@
+   best_ntrees  best_score  bst:colsample_bytree   bst:eta  bst:max_depth  \
+0          207    0.066576              0.748616  0.202119             26   
+
+   bst:subsample  early_stopping  n_round  ntrees     score  
+0       0.898937             100      800     307  0.067935  
