@@ -19,9 +19,9 @@ from stacking import ModifiedXGBClassifier
 from stacking import BlendedModel
 
 if __name__ == '__main__': 
-    results = pd.io.pickle.read_pickle('results/results_df_last.pkl')
-    models_to_use = results#[(results['best_score']<0.07) | ((results['best_score']<0.09)&(results['bst:eta']>0.3))]
-    models_to_use=models_to_use.sort(['best_score'])[:4]
+    ##retrieve the 10 best models compute in xgb_search_paramss according to best_score
+    models_to_use = pd.io.pickle.read_pickle('results/results_df_last.pkl')
+    models_to_use=models_to_use.sort(['best_score'])[:10]
     models = []
     for j,row in enumerate(models_to_use.iterrows()):
             print j
@@ -36,8 +36,9 @@ if __name__ == '__main__':
                                     objective='multi:softprob')
                           )
 
-    nb_fold=3
-    dtrX,dtrY,dteX,dteY = getData(prop=0,oh=0)
+    
+    nb_fold=3 #nb fold of the cross validation
+    dtrX,dtrY,dteX,dteY = getData(prop=0,oh=0) #as prop=0, dteX=dteY=[]
     skf = StratifiedKFold(dtrY, nb_fold)
     
     rModTe=np.zeros((len(models),nb_fold))
@@ -54,7 +55,9 @@ if __name__ == '__main__':
         
     for j,(train, test) in enumerate(skf):
         if j==0:
-        #print j,train, test
+            #print j,train, test
+            ##vaX validation set, teX test set
+            
             vaX=dtrX[test,][:(len(test)/2),]
             teX=dtrX[test,][(len(test)/2):,]
             trX=dtrX[train,]
@@ -62,14 +65,16 @@ if __name__ == '__main__':
             teY=dtrY[test][(len(test)/2):]
             trY=dtrY[train]
 
-
             bmdl = BlendedModel(models,nbFeatures=(len(models)*4+len(trX[0])))
-            bmdl.fit(trX,trY)
+            
+            #we fit the xgboost classifier
+            bmdl.fit(trX,trY) 
 
             print("score models")
             for m,model in enumerate(models):
-                print(np.mean(np.argmax(model.predict_proba(teX), axis=1) == teY))
-                rModTe[m][j]=(np.mean(np.argmax(model.predict_proba(teX), axis=1) == teY))
+                scoreTe=np.mean(np.argmax(model.predict_proba(teX), axis=1) == teY)
+                print(scoreTe)
+                rModTe[m][j]=scoreTe
 
             predictTe=bmdl.predict_proba(teX)
             scoreTe=np.mean(np.argmax(predictTe, axis=1) == teY) 
@@ -77,6 +82,7 @@ if __name__ == '__main__':
             print(scoreTe)
             rAveTe[j]=scoreTe
 
+            #we fit the logistic regression blender
             print("blend logistic regression")
             bmdl.fitLog(vaX,vaY)
 
@@ -93,7 +99,7 @@ if __name__ == '__main__':
             print(scoreVa)
             rLogVa[j]=scoreVa
        
-           
+            #we fit the logistic regression blender with features engineering
             print("blend logistic regression with log(x/(1-x)")
             bmdl.fitLog(vaX,vaY,mod=1)
             predictTe=bmdl.predict_Logproba(teX,mod=1)
@@ -109,6 +115,7 @@ if __name__ == '__main__':
             print(scoreVa)
             rLog2Va[j]=scoreVa          
             
+            #we fit the xgboost blender
             print("blend XGB")
             bmdl.fitXGB(vaX,vaY)
 
@@ -125,6 +132,7 @@ if __name__ == '__main__':
             print(scoreVa)
             rXGBVa[j]=scoreVa
 
+            #we fit the neural network classifier
             print("blend nn")
             bmdl.fitNN(vaX,vaY,lambda1=0.0000005,lambda2=0.00001,teX=teX,teY=teY)
 
